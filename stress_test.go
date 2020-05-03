@@ -112,7 +112,7 @@ func TestStress(t *testing.T) {
 
 	testerCount := 10     // How many testers will be started
 	itemsInCache := 50000 // How many items each tester() will add to the cache
-	retrieveCount := 5    // How many retrievals are attempted of each item
+	retrieveCount := 4    // How many retrievals are attempted of each item
 
 	resultChan := make(chan *testResult, testerCount)
 
