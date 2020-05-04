@@ -1,20 +1,19 @@
 package hashcache
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/gob"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
+
+	"github.com/gford1000-go/hasher"
 
 	"github.com/gford1000-go/chanmgr"
 )
 
 // cachePut combines Cache.Put() args so that they can be passed via chanmgr.InOut
 type cachePut struct {
-	key  cacheKey
+	key  hasher.DataHash
 	data interface{}
 }
 
@@ -63,8 +62,10 @@ func New(config *Config) (*Cache, error) {
 
 	for i := 0; i < 256; i++ {
 
-		cache := &simpleCache{m: make(map[cacheKey]interface{})}
+		// These are the internal caches, with no synchronisation
+		cache := &simpleCache{m: make(map[hasher.DataHash]interface{})}
 
+		// chanmgr provides synchronisation via channels
 		chans := []*chanmgr.InOut{
 			&chanmgr.InOut{
 				Processor: func(i interface{}) (interface{}, error) {
@@ -78,7 +79,7 @@ func New(config *Config) (*Cache, error) {
 			},
 			&chanmgr.InOut{
 				Processor: func(i interface{}) (interface{}, error) {
-					key, ok := i.(cacheKey)
+					key, ok := i.(hasher.DataHash)
 					if !ok {
 						return nil, errors.New("Internal error")
 					}
@@ -108,34 +109,9 @@ func New(config *Config) (*Cache, error) {
 	}, nil
 }
 
-func (c *Cache) keyToBytes(key interface{}) (data []byte, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("keyToBytes() panicked: %v", r)
-		}
-	}()
-
-	var stream bytes.Buffer
-	enc := gob.NewEncoder(&stream)
-	e := enc.Encode(key)
-	if e != nil {
-		return nil, fmt.Errorf("Failed to covert %v to []byte: %v", key, e)
-	}
-	return stream.Bytes(), nil
-}
-
-// getCacheKey converts the key to a []byte and then hashes with sha256
-func (c *Cache) getCacheKey(key interface{}) (cacheKey, error) {
-	b, err := c.keyToBytes(key)
-	if err != nil {
-		return invalidCacheKey, fmt.Errorf("Invalid key: %v", err)
-	}
-	return sha256.Sum256(b), nil
-}
-
 // Put adds or overwrites the value at the specified key
 func (c *Cache) Put(key, value interface{}) error {
-	h, err := c.getCacheKey(key)
+	h, err := hasher.Hash(key)
 	if err != nil {
 		return err
 	}
@@ -154,7 +130,7 @@ func (c *Cache) Put(key, value interface{}) error {
 
 // Get returns the value at the specified key (error if not found)
 func (c *Cache) Get(key interface{}) (interface{}, error) {
-	h, err := c.getCacheKey(key)
+	h, err := hasher.Hash(key)
 	if err != nil {
 		return nil, err
 	}
