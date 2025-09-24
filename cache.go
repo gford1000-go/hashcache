@@ -2,7 +2,9 @@ package hashcache
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"sync/atomic"
 
@@ -49,35 +51,39 @@ func New(ctx context.Context, config *Config) (*Cache, error) {
 		}
 	}
 
-	sc := &simpleCache{
-		m: map[string]any{},
-	}
-
-	handler := func(ctx context.Context, s *selector) (*result, error) {
-		if s.putItem != nil {
-			err := sc.put(s.putItem.key, s.putItem.value)
-			return &result{
-				err: err,
-			}, nil
-		}
-		if s.getItem != nil {
-			v, err := sc.get(s.getItem.key)
-			return &result{
-				value: v,
-				err:   err,
-			}, nil
-		}
-
-		return nil, errors.New("invalid request received")
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 
-	requestor := saferr.Go(ctx, handler, saferr.WithChanSize(c.RequestBuffer))
+	requestors := make([]types.Requestor[selector, result], 16)
+
+	for i := range len(requestors) {
+		sc := &simpleCache{
+			m: map[string]any{},
+		}
+
+		handler := func(ctx context.Context, s *selector) (*result, error) {
+			if s.putItem != nil {
+				err := sc.put(s.putItem.key, s.putItem.value)
+				return &result{
+					err: err,
+				}, nil
+			}
+			if s.getItem != nil {
+				v, err := sc.get(s.getItem.key)
+				return &result{
+					value: v,
+					err:   err,
+				}, nil
+			}
+
+			return nil, errors.New("invalid request received")
+		}
+
+		requestors[i] = saferr.Go(ctx, handler, saferr.WithChanSize(c.RequestBuffer))
+	}
 
 	return &Cache{
 		cancel: cancel,
-		r:      requestor,
+		r:      requestors,
 	}, nil
 }
 
@@ -85,15 +91,24 @@ func New(ctx context.Context, config *Config) (*Cache, error) {
 type Cache struct {
 	invalid atomic.Bool
 	cancel  context.CancelFunc
-	r       types.Requestor[selector, result]
+	r       []types.Requestor[selector, result]
 }
 
-func (c *Cache) keyToString(key any) (string, error) {
+func (c *Cache) keyToString(key any) (string, int, error) {
 	b, err := hasher.Hash(key)
 	if err != nil {
-		return "", err
+		return "", -1, err
 	}
-	return string(b), nil
+	s := hex.EncodeToString(b)
+
+	switch {
+	case s[0] >= 'a' && s[0] <= 'f':
+		return s, int(s[0]-'a') + 10, nil // a=10, b=11, c=12, d=13, e=14, f=15
+	case s[0] >= '0' && s[0] <= '9':
+		return s, int(s[0] - '0'), nil // 0=0, 1=1, ..., 9=9
+	default:
+		return s, -1, fmt.Errorf("invalid character '%c', must be a-e or 0-9", s[0])
+	}
 }
 
 func (c *Cache) isInvalid() bool {
@@ -109,7 +124,7 @@ func (c *Cache) Put(key, value any) error {
 		return ErrCacheInvalidated
 	}
 
-	sk, err := c.keyToString(key)
+	sk, offset, err := c.keyToString(key)
 	if err != nil {
 		return err
 	}
@@ -120,7 +135,7 @@ func (c *Cache) Put(key, value any) error {
 		},
 	}
 
-	result, err := c.r.Send(context.Background(), s)
+	result, err := c.r[offset].Send(context.Background(), s)
 	if err != nil {
 		return err
 	}
@@ -133,7 +148,7 @@ func (c *Cache) Get(key any) (any, error) {
 		return nil, ErrCacheInvalidated
 	}
 
-	sk, err := c.keyToString(key)
+	sk, offset, err := c.keyToString(key)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +158,7 @@ func (c *Cache) Get(key any) (any, error) {
 		},
 	}
 
-	result, err := c.r.Send(context.Background(), s)
+	result, err := c.r[offset].Send(context.Background(), s)
 	if err != nil {
 		return nil, err
 	}
