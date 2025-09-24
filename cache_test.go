@@ -1,13 +1,14 @@
 package hashcache
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
 
 func TestNew(t *testing.T) {
 
-	cache, err := New(nil)
+	cache, err := New(context.Background(), nil)
 	if err != nil {
 		t.Errorf("Unexpected error on New(): %v", err)
 		return

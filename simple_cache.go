@@ -3,17 +3,15 @@ package hashcache
 import (
 	"errors"
 	"fmt"
-
-	"github.com/gford1000-go/hasher"
 )
 
 // cache is the base cache - a simple map to the data
 type simpleCache struct {
-	m map[hasher.DataHash]interface{}
+	m map[string]any
 }
 
 // put will add/overwrite data at the specified key
-func (c *simpleCache) put(key hasher.DataHash, data interface{}) (err error) {
+func (c *simpleCache) put(key string, data any) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("cache.put() panicked: %v", r)
@@ -25,16 +23,16 @@ func (c *simpleCache) put(key hasher.DataHash, data interface{}) (err error) {
 }
 
 // get will retreive data at the specified key, or return an error
-func (c *simpleCache) get(key hasher.DataHash) (data interface{}, err error) {
+func (c *simpleCache) get(key string) (data any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("cache.put() panicked: %v", r)
+			err = fmt.Errorf("cache.get() panicked: %v", r)
 		}
 	}()
 
 	data, ok := c.m[key]
 	if !ok {
-		err = errors.New("Key not found")
+		err = errors.New("key not found")
 	}
 	return data, err
 }

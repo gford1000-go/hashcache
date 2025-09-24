@@ -1,11 +1,14 @@
 package hashcache
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+)
 
 func Example() {
 
 	// Create the cache
-	cache, _ := New(nil)
+	cache, _ := New(context.Background(), nil)
 	defer func() {
 		cache.Delete() // Tidy up
 	}()

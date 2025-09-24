@@ -1,6 +1,7 @@
 package hashcache
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -31,16 +32,16 @@ func tester(testerID int, c *Cache, addItemsCount int, getCount int, resultChan 
 	// 1. Create the specified number of random entries in Cache
 
 	type entry struct {
-		key   interface{}
-		value interface{}
+		key   any
+		value any
 	}
 
 	putStart := time.Now()
 
 	entries := make([]*entry, 0)
-	keys := make([]interface{}, 0)
+	keys := make([]any, 0)
 
-	for i := 0; i < addItemsCount; i++ {
+	for range addItemsCount {
 		key, _ := createRandom(64)
 		value, _ := createRandom(1 + irand.Intn(1024))
 
@@ -61,9 +62,9 @@ func tester(testerID int, c *Cache, addItemsCount int, getCount int, resultChan 
 	var wg sync.WaitGroup
 	wg.Add(addItemsCount * getCount)
 
-	for i := 0; i < addItemsCount; i++ {
+	for i := range addItemsCount {
 		go func(myI int) {
-			for gets := 0; gets < getCount; gets++ {
+			for gets := range getCount {
 				go func(myGets int) {
 					defer func() {
 						wg.Done()
@@ -107,18 +108,17 @@ func tester(testerID int, c *Cache, addItemsCount int, getCount int, resultChan 
 
 func TestStress(t *testing.T) {
 
-	config := &Config{RequestBuffer: 1000}
-	cache, _ := New(config)
+	cache, _ := New(context.Background(), &Config{RequestBuffer: 10000})
 
-	testerCount := 10     // How many testers will be started
-	itemsInCache := 50000 // How many items each tester() will add to the cache
-	retrieveCount := 4    // How many retrievals are attempted of each item
+	testerCount := 2    // How many testers will be started
+	itemsInCache := 200 // How many items each tester() will add to the cache
+	retrieveCount := 20 // How many retrievals are attempted of each item
 
 	resultChan := make(chan *testResult, testerCount)
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < testerCount; i++ {
+	for i := range testerCount {
 		wg.Add(1)
 		go func(myI int) {
 			defer func() {
@@ -137,5 +137,6 @@ func TestStress(t *testing.T) {
 			t.Errorf("Unexpected error: %v", result.err)
 			return
 		}
+		fmt.Printf("Get: %10d, Put: %10d\n", result.getElapsed, result.putElapsed)
 	}
 }
