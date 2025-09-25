@@ -8,7 +8,7 @@ import (
 
 func TestNew(t *testing.T) {
 
-	cache, err := New(context.Background(), nil)
+	cache, err := New(context.Background())
 	if err != nil {
 		t.Errorf("Unexpected error on New(): %v", err)
 		return

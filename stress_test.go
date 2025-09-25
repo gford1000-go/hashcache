@@ -108,7 +108,7 @@ func tester(testerID int, c *Cache, addItemsCount int, getCount int, resultChan 
 
 func TestStress(t *testing.T) {
 
-	cache, _ := New(context.Background(), &Config{RequestBuffer: 10000})
+	cache, _ := New(context.Background(), WithBufferSize(10000))
 
 	testerCount := 10   // How many testers will be started
 	itemsInCache := 500 // How many items each tester() will add to the cache
