@@ -7,10 +7,26 @@ HashCache | In-memory caching of objects, with arbitrary keys
 
 The hashcache package provides a simple in-memory, non-persistent and concurrency-safe cache, where the key does not have to be comparable.
 
-An example of use is available in GoDocs.
+An example of use is shown below:
+
+```go
+func main() {
+    // Create the cache, using sha512 hashing for the key
+    cache, _ := hashcache.New[string](context.Background(), WithHashType(hasher.Sha512))
+    defer cache.Delete()
+
+    // Store some data
+    cache.Put("MyKey", "Hello World")
+
+    // Retrieve data
+    resp, _ := cache.Get("MyKey")
+
+    fmt.Println(resp) // Hello World
+}
+```
 
 The `Cache` supports the use of an arbitrary key, which is then hashed to create
-the internal key.  `Cache` internally partitions data into distinct maps using
+the internal key.  `Cache` is partitioned internally into distinct maps using
 the first byte of the hash key, to improve concurrent performance.  
 
 Installing and building the library

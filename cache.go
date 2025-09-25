@@ -12,27 +12,27 @@ import (
 	"github.com/gford1000-go/saferr/types"
 )
 
-type put struct {
+type put[T any] struct {
 	key   string
-	value any
+	value T
 }
 
 type get struct {
 	key string
 }
 
-type result struct {
-	value any
+type result[T any] struct {
+	value T
 	err   error
 }
 
-type selector struct {
-	putItem *put
+type selector[T any] struct {
+	putItem *put[T]
 	getItem *get
 }
 
 // New creates a new Cache instance, with Options being available to change behaviour
-func New(ctx context.Context, opts ...func(*Options)) (*Cache, error) {
+func New[T any](ctx context.Context, opts ...func(*Options)) (*Cache[T], error) {
 
 	o := Options{
 		BufferSize: 100,
@@ -43,23 +43,21 @@ func New(ctx context.Context, opts ...func(*Options)) (*Cache, error) {
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	requestors := make([]types.Requestor[selector, result], 16)
+	requestors := make([]types.Requestor[selector[T], result[T]], 16)
 
 	for i := range len(requestors) {
-		sc := &simpleCache{
-			m: map[string]any{},
-		}
+		sc := newSimpleCache[T]()
 
-		handler := func(ctx context.Context, s *selector) (*result, error) {
+		handler := func(ctx context.Context, s *selector[T]) (*result[T], error) {
 			if s.putItem != nil {
 				err := sc.put(s.putItem.key, s.putItem.value)
-				return &result{
+				return &result[T]{
 					err: err,
 				}, nil
 			}
 			if s.getItem != nil {
 				v, err := sc.get(s.getItem.key)
-				return &result{
+				return &result[T]{
 					value: v,
 					err:   err,
 				}, nil
@@ -71,7 +69,7 @@ func New(ctx context.Context, opts ...func(*Options)) (*Cache, error) {
 		requestors[i] = saferr.Go(ctx, handler, saferr.WithChanSize(o.BufferSize))
 	}
 
-	return &Cache{
+	return &Cache[T]{
 		cancel: cancel,
 		ht:     o.HashType,
 		r:      requestors,
@@ -79,14 +77,14 @@ func New(ctx context.Context, opts ...func(*Options)) (*Cache, error) {
 }
 
 // Cache provides a concurrency safe in-memory cache, keyed using the value of Hasher.Hash()
-type Cache struct {
+type Cache[T any] struct {
 	invalid atomic.Bool
 	cancel  context.CancelFunc
 	ht      hasher.HashType
-	r       []types.Requestor[selector, result]
+	r       []types.Requestor[selector[T], result[T]]
 }
 
-func (c *Cache) keyToString(key any) (string, int, error) {
+func (c *Cache[T]) keyToString(key any) (string, int, error) {
 	b, err := hasher.Hash(key, hasher.WithHashType(c.ht))
 	if err != nil {
 		return "", -1, err
@@ -104,7 +102,7 @@ func (c *Cache) keyToString(key any) (string, int, error) {
 	}
 }
 
-func (c *Cache) isInvalid() bool {
+func (c *Cache[T]) isInvalid() bool {
 	return c.invalid.Load()
 }
 
@@ -112,7 +110,7 @@ func (c *Cache) isInvalid() bool {
 var ErrCacheInvalidated = errors.New("cache has been invalidated")
 
 // Put adds the value to the key against the specified key
-func (c *Cache) Put(key, value any) error {
+func (c *Cache[T]) Put(key any, value T) error {
 	if c.isInvalid() {
 		return ErrCacheInvalidated
 	}
@@ -121,8 +119,8 @@ func (c *Cache) Put(key, value any) error {
 	if err != nil {
 		return err
 	}
-	s := &selector{
-		putItem: &put{
+	s := &selector[T]{
+		putItem: &put[T]{
 			key:   sk,
 			value: value,
 		},
@@ -136,16 +134,17 @@ func (c *Cache) Put(key, value any) error {
 }
 
 // Get returns the value for the specified key
-func (c *Cache) Get(key any) (any, error) {
+func (c *Cache[T]) Get(key any) (T, error) {
+	var nilT T
 	if c.isInvalid() {
-		return nil, ErrCacheInvalidated
+		return nilT, ErrCacheInvalidated
 	}
 
 	sk, offset, err := c.keyToString(key)
 	if err != nil {
-		return nil, err
+		return nilT, err
 	}
-	s := &selector{
+	s := &selector[T]{
 		getItem: &get{
 			key: sk,
 		},
@@ -153,13 +152,13 @@ func (c *Cache) Get(key any) (any, error) {
 
 	result, err := c.r[offset].Send(context.Background(), s)
 	if err != nil {
-		return nil, err
+		return nilT, err
 	}
 	return result.value, result.err
 }
 
 // Delete invalidates the cache, preventing further access to the Cache and its contents
-func (c *Cache) Delete() {
+func (c *Cache[T]) Delete() {
 	c.invalid.Store(true)
 	c.cancel()
 }

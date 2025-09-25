@@ -8,15 +8,6 @@ import (
 
 func TestNew(t *testing.T) {
 
-	cache, err := New(context.Background())
-	if err != nil {
-		t.Errorf("Unexpected error on New(): %v", err)
-		return
-	}
-	defer func() {
-		cache.Delete()
-	}()
-
 	type args struct {
 		putKey interface{}
 		getKey interface{}
@@ -118,7 +109,16 @@ func TestNew(t *testing.T) {
 		},
 	}
 
+	// Normally Cache is type specific, but can use 'any' as here to have a single cache
+	cache, err := New[any](context.Background())
+	if err != nil {
+		t.Errorf("Unexpected error on New(): %v", err)
+		return
+	}
+	defer cache.Delete()
+
 	for _, tt := range tests {
+
 		err = cache.Put(tt.args.putKey, tt.args.value)
 		if (err != nil) != tt.wantPuErr {
 			t.Errorf("Unexpected error on Put(): %v", err)

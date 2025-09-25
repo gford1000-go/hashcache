@@ -10,15 +10,17 @@ import (
 func Example() {
 
 	// Create the cache, using sha512 hashing for the key
-	cache, _ := New(context.Background(), WithHashType(hasher.Sha512))
+	cache, _ := New[string](context.Background(), WithHashType(hasher.Sha512))
 	defer cache.Delete() // Tidy up
 
+	data := "Hellow World"
+
 	// Store some data
-	cache.Put("MyKey", "MyValue")
+	cache.Put("MyKey", data)
 
 	// Retrieve data
 	resp, _ := cache.Get("MyKey")
 
-	fmt.Println(resp)
-	// Output: MyValue
+	fmt.Println(resp == data)
+	// Output: true
 }
