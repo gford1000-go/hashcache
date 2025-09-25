@@ -1,0 +1,6 @@
+github.com/gford1000-go/hasher v0.1.0 h1:OSlgX8ndkTLah3MN1/j7OZJhwKMc25HwlOrs0AE58mA=
+github.com/gford1000-go/hasher v0.1.0/go.mod h1:ZlyIVwdO1YAnbwgNxuQe5PVjiVV68sbC46YNkxjygmk=
+github.com/gford1000-go/pool v0.0.0-20250924155128-ec940ed99c96 h1:8T/1bvxvmXZLNC8wWC2vYMYz8keWQdr0I0AqycERjeg=
+github.com/gford1000-go/pool v0.0.0-20250924155128-ec940ed99c96/go.mod h1:AZAML/vy+LIXWfi+Hzyn7hb4sgbLa0Uc8VPeKA3XmM0=
+github.com/gford1000-go/saferr v1.2.0 h1:846ACCp9mvphVwBOcUOh1bx0TQgdEEQenRtykUrqDJw=
+github.com/gford1000-go/saferr v1.2.0/go.mod h1:urL0O+JEM8ntgr0Xy6gGLlqbqaOiz9/oU/WU48+hTdI=
