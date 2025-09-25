@@ -41,14 +41,14 @@ func New[T any](ctx context.Context, opts ...func(*Options)) (*Cache[T], error) 
 		opt(&o)
 	}
 
-	ctx, cancel := context.WithCancel(ctx)
+	ctxGo, cancel := context.WithCancel(context.Background())
 
 	requestors := make([]types.Requestor[selector[T], result[T]], 16)
 
 	for i := range len(requestors) {
 		sc := newSimpleCache[T]()
 
-		handler := func(ctx context.Context, s *selector[T]) (*result[T], error) {
+		handler := func(_ context.Context, s *selector[T]) (*result[T], error) {
 			if s.putItem != nil {
 				err := sc.put(s.putItem.key, s.putItem.value)
 				return &result[T]{
@@ -66,14 +66,27 @@ func New[T any](ctx context.Context, opts ...func(*Options)) (*Cache[T], error) 
 			return nil, errors.New("invalid request received")
 		}
 
-		requestors[i] = saferr.Go(ctx, handler, saferr.WithChanSize(o.BufferSize))
+		requestors[i] = saferr.Go(ctxGo, handler, saferr.WithChanSize(o.BufferSize))
 	}
 
-	return &Cache[T]{
+	c := &Cache[T]{
 		cancel: cancel,
 		ht:     o.HashType,
 		r:      requestors,
-	}, nil
+	}
+
+	// Listen for external context to be completed, and tidy up cache gracefully;
+	// When Delete() is called directly, then ctxGo will be completed, so goroutine will exit
+	go func() {
+		select {
+		case <-ctx.Done():
+			c.Delete()
+		case <-ctxGo.Done():
+			return
+		}
+	}()
+
+	return c, nil
 }
 
 // Cache provides a concurrency safe in-memory cache, keyed using the value of Hasher.Hash()

@@ -2,8 +2,10 @@ package hashcache
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestNew(t *testing.T) {
@@ -137,5 +139,81 @@ func TestNew(t *testing.T) {
 		if !reflect.DeepEqual(resp, tt.want) {
 			t.Errorf("Unexpected return value from Get(): wanted %v, got %v", tt.want, resp)
 		}
+	}
+}
+
+func TestNew_1(t *testing.T) {
+
+	cache, err := New[string](context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cache.Delete()
+
+	<-time.After(100 * time.Millisecond)
+
+	err = cache.Put("AKey", "AValue")
+
+	if err == nil {
+		t.Fatal("unexpected success to Put value, after context cancelled")
+	}
+	if !errors.Is(err, ErrCacheInvalidated) {
+		t.Fatalf("unexpected Put error: expected %v, got: %v", ErrCacheInvalidated, err)
+	}
+
+	_, err = cache.Get("AKey")
+
+	if err == nil {
+		t.Fatal("unexpected success to Get value, after context cancelled")
+	}
+	if !errors.Is(err, ErrCacheInvalidated) {
+		t.Fatalf("unexpected error from Get: expected %v, got: %v", ErrCacheInvalidated, err)
+	}
+}
+
+func TestNew_2(t *testing.T) {
+
+	cache, err := New[string](context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	deleter := func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("unexpected recover: %v", r)
+			}
+		}()
+		cache.Delete()
+	}
+
+	for range 10 {
+		deleter()
+	}
+}
+
+func TestNew_3(t *testing.T) {
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	cache, err := New[string](ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	<-time.After(100 * time.Millisecond)
+
+	cancel()
+
+	<-time.After(100 * time.Millisecond)
+
+	err = cache.Put("AKey", "AValue")
+
+	if err == nil {
+		t.Fatal("unexpected success to put value, after context cancelled")
+	}
+	if !errors.Is(err, ErrCacheInvalidated) {
+		t.Fatalf("unexpected error: expected %v, got: %v", ErrCacheInvalidated, err)
 	}
 }
