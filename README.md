@@ -29,6 +29,9 @@ The `Cache` supports the use of an arbitrary key, which is then hashed to create
 the internal key.  `Cache` is partitioned internally into distinct maps using
 the first byte of the hash key, to improve concurrent performance.  
 
+The internal maps use the LRU pattern provided by `github.com/gford1000-go/lru` to evict
+the most seldomly used cached item, if a limit to cache size is specified using `WithMaxEntries()`.
+
 Installing and building the library
 ===================================
 

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gford1000-go/hasher"
+	"github.com/gford1000-go/lru"
 	"github.com/gford1000-go/saferr"
 	"github.com/gford1000-go/saferr/types"
 )
@@ -36,6 +37,7 @@ func New[T any](ctx context.Context, opts ...func(*Options)) (*Cache[T], error) 
 
 	o := Options{
 		BufferSize: 100,
+		MaxEntries: 0,
 	}
 	for _, opt := range opts {
 		opt(&o)
@@ -43,22 +45,38 @@ func New[T any](ctx context.Context, opts ...func(*Options)) (*Cache[T], error) 
 
 	ctxGo, cancel := context.WithCancel(context.Background())
 
+	caches := make([]*lru.BasicCache, 16)
+	var err error
+	for i := range len(caches) {
+		caches[i], err = lru.NewBasicCache(ctxGo, o.MaxEntries, 0)
+		if err != nil {
+			for j := range i {
+				caches[j].Close()
+			}
+			cancel()
+			return nil, err
+		}
+	}
+
 	requestors := make([]types.Requestor[selector[T], result[T]], 16)
 
 	for i := range len(requestors) {
-		sc := newSimpleCache[T]()
 
-		handler := func(_ context.Context, s *selector[T]) (*result[T], error) {
+		postGo := func(err error) {
+			caches[i].Close()
+		}
+
+		handler := func(ctx context.Context, s *selector[T]) (*result[T], error) {
 			if s.putItem != nil {
-				err := sc.put(s.putItem.key, s.putItem.value)
+				err := caches[i].Put(ctx, s.putItem.key, s.putItem.value)
 				return &result[T]{
 					err: err,
 				}, nil
 			}
 			if s.getItem != nil {
-				v, err := sc.get(s.getItem.key)
+				v, _, err := caches[i].Get(ctx, s.getItem.key)
 				return &result[T]{
-					value: v,
+					value: v.(T),
 					err:   err,
 				}, nil
 			}
@@ -66,7 +84,9 @@ func New[T any](ctx context.Context, opts ...func(*Options)) (*Cache[T], error) 
 			return nil, errors.New("invalid request received")
 		}
 
-		requestors[i] = saferr.Go(ctxGo, handler, saferr.WithChanSize(o.BufferSize))
+		requestors[i] = saferr.Go(ctxGo, handler,
+			saferr.WithChanSize(o.BufferSize),
+			saferr.WithGoPostEnd(postGo))
 	}
 
 	c := &Cache[T]{

@@ -1,6 +1,12 @@
 github.com/gford1000-go/hasher v0.1.0 h1:OSlgX8ndkTLah3MN1/j7OZJhwKMc25HwlOrs0AE58mA=
 github.com/gford1000-go/hasher v0.1.0/go.mod h1:ZlyIVwdO1YAnbwgNxuQe5PVjiVV68sbC46YNkxjygmk=
+github.com/gford1000-go/lru v0.0.0-20250105163841-a96a5586a06a h1:LhCUWhmhvOcSYAWp+KsuJ0Lgz+KojgD5omLHoA+CfvU=
+github.com/gford1000-go/lru v0.0.0-20250105163841-a96a5586a06a/go.mod h1:n9GoSeJls66dRMysJb/9dAUNfYFPCt6BRMlEgtTKWMs=
 github.com/gford1000-go/pool v0.0.0-20250924155128-ec940ed99c96 h1:8T/1bvxvmXZLNC8wWC2vYMYz8keWQdr0I0AqycERjeg=
 github.com/gford1000-go/pool v0.0.0-20250924155128-ec940ed99c96/go.mod h1:AZAML/vy+LIXWfi+Hzyn7hb4sgbLa0Uc8VPeKA3XmM0=
 github.com/gford1000-go/saferr v1.2.0 h1:846ACCp9mvphVwBOcUOh1bx0TQgdEEQenRtykUrqDJw=
 github.com/gford1000-go/saferr v1.2.0/go.mod h1:urL0O+JEM8ntgr0Xy6gGLlqbqaOiz9/oU/WU48+hTdI=
+go.opentelemetry.io/otel v1.33.0 h1:/FerN9bax5LoK51X/sI0SVYrjSE0/yUL7DpxW4K3FWw=
+go.opentelemetry.io/otel v1.33.0/go.mod h1:SUUkR6csvUQl+yjReHu5uM3EtVV7MBm5FHKRlNx4I8I=
+go.opentelemetry.io/otel/trace v1.33.0 h1:cCJuF7LRjUFso9LPnEAHJDB2pqzp+hbO8eu1qqW2d/s=
+go.opentelemetry.io/otel/trace v1.33.0/go.mod h1:uIcdVUZMpTAmz0tI1z04GoVSezK37CbGV4fr1f2nBck=
